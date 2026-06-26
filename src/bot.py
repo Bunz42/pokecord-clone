@@ -29,11 +29,6 @@ async def on_ready():
 # ------------------------------------------------------------------------------------------------------------------ #
 
 
-# A basic command: type !ping in Discord, and the bot replies "Pong!"
-@bot.command()
-async def ping(ctx):
-    await ctx.send('Pong!')
-
 # -------------------------------------------------COMMANDS----------------------------------------------------------- #
 @bot.command(name="spawn", aliases=["s"])
 async def handle_spawn(ctx):
