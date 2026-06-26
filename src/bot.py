@@ -1,5 +1,6 @@
 from discord import Embed, Color, Intents, File
 from discord.ext import commands
+import random
 
 import os
 from dotenv import load_dotenv
@@ -18,6 +19,12 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 # ------------------------------------------------------------------------------------------------------------------------------- #
 
+# -------------------------------------------------FUNCTIONS----------------------------------------------------------- #
+async def function(param):
+    pass
+    
+# --------------------------------------------------------------------------------------------------------------------- #
+
 # -------------------------------------------------EVENTS----------------------------------------------------------- #
 
 # This event runs once when the bot successfully connects to Discord
@@ -26,23 +33,35 @@ async def on_ready():
     print(f'Successfully logged in as {bot.user} (ID: {bot.user.id})') # type: ignore
     print('------')
 
+@bot.listen("on_message")
+async def handle_msg_spawn(message):
+    if message.author == bot.user:
+        return
+    
+
+    if random.random() < 0.5: # tune value for spawn rate (currently 50% every msg)
+
+        # print("50% chance event happened!")
+
+        directory = "shiny" if random.random() < 0.5 else "regular"
+        file = File(f"assets/scaled_sprites/{directory}/pikachu.gif", filename="pikachu.gif")
+
+        embed = Embed(
+            title="A wild pokemon appeared!", 
+            description="Guess the pokemon and type .catch <pokemon> to catch it!",
+            color=Color.green(),
+        )
+
+        embed.set_image(url="attachment://pikachu.gif")
+
+        await message.channel.send(file=file, embed=embed)
+
 # ------------------------------------------------------------------------------------------------------------------ #
 
 
 # -------------------------------------------------COMMANDS----------------------------------------------------------- #
-@bot.command(name="spawn", aliases=["s"])
-async def handle_spawn(ctx):
-    file = File("assets/scaled_sprites/shiny/pikachu.gif", filename="pikachu.gif")
+# @bot.command(name="spawn", aliases=["s"])
 
-    embed = Embed(
-        title="A wild pokemon appeared!", 
-        description="Guess the pokemon and type .catch <pokemon> to catch it!",
-        color=Color.green()
-    )
-
-    embed.set_image(url="attachment://pikachu.gif")
-
-    await ctx.send(file=file, embed=embed)
 
 # -------------------------------------------------------------------------------------------------------------------- #
 
