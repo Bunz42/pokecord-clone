@@ -16,7 +16,13 @@ if token is None:
 intents = Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='.', intents=intents)
+
+with open('advanced_pokemon_data.json', 'r') as file:
+    POKEMON_DATA = json.load(file)
+
+POKEMON_IDS = list(POKEMON_DATA.keys())
+SPAWN_WEIGHTS = [data["weight"] for data in POKEMON_DATA.values()]
 
 # -------------------------------------------------FUNCTIONS----------------------------------------------------------- #
 async def function(param):
@@ -36,35 +42,42 @@ async def handle_msg_spawn(message):
         return
 
     if random.random() < 0.5: # tune value for spawn rate (currently 50% every msg)
-        with open('pokemon_data.json' , 'r') as file: # access pokemon data (name and id)
-            data = json.load(file)
-            id = random.randint(1, 1025)
-            name = data[str(id)]
+        spawn_id = random.choices(POKEMON_IDS, weights=SPAWN_WEIGHTS, k=1)[0]
+        pokemon_info = POKEMON_DATA[spawn_id]
+        name = pokemon_info["name"]
+        is_rare = pokemon_info["is_rare"] # can use this flag to make legendary/mythic embeds yellow instead of green
+
+        # with open('pokemon_data.json' , 'r') as file: # access pokemon data (name and id)
+        #     data = json.load(file)
+        #     id = random.randint(1, 1025)
+        #     name = data[str(id)]
             
-            print(f"Spawned a: {name.title()}") # print name for testing purposes
+        print(f"Spawned a: {name.title()} (Rare: {is_rare})") # print name and rarity for testing purposes
 
-            directory = "shiny" if random.random() < 0.5 else "regular" # shiny spawning logic
-            if directory == "shiny":
-                spawn_title = "⭐ A wild SHINY Pokémon appeared! ⭐"
-            else:
-                spawn_title = "A wild Pokémon appeared!"
+        directory = "shiny" if random.random() < 0.5 else "regular" # shiny spawning logic
+        if directory == "shiny":
+            spawn_title = "⭐ A wild SHINY Pokémon appeared! ⭐"
+        else:
+            spawn_title = "A wild Pokémon appeared!"
 
 
-            file = File(f"assets/official-artwork/{directory}/{id}.png", filename=f"{id}.png")
+        file = File(f"assets/official-artwork/{directory}/{spawn_id}.png", filename=f"{spawn_id}.png")
 
-            embed = Embed(
-                title=spawn_title,
-                description="Guess the pokemon and type .catch <pokemon> to catch it!",
-                color=Color.green(),
-            )
+        embed = Embed(
+            title=spawn_title,
+            description="Guess the pokemon and type .catch <pokemon> to catch it!",
+            color=Color.green() if not is_rare else Color.yellow(),
+        )
 
-            embed.set_image(url=f"attachment://{id}.png")
+        embed.set_image(url=f"attachment://{spawn_id}.png")
 
-            await message.channel.send(file=file, embed=embed)
+        await message.channel.send(file=file, embed=embed)
 
 
 # -------------------------------------------------COMMANDS----------------------------------------------------------- #
-# @bot.command(name="spawn", aliases=["s"])
+@bot.command(name="catch")
+async def catch(ctx):
+    await ctx.send
 
 
 # Run the bot
