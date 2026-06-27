@@ -52,8 +52,8 @@ def scale_gif(input_path, output_path, scale_factor):
         print(f"Successfully scaled GIF saved to: {output_path}")
 # ---------------------------------------------------------------------------------------------------------------------------- #
 
-input_gif = "assets/showdown/shiny/25.gif"
-output_gif = "assets/scaled_sprites/shiny/pikachu.gif"
+input_gif = "assets/showdown/25.gif"
+output_gif = "assets/scaled_sprites/regular/pikachu.gif"
 
 scale_gif(
     input_path=input_gif, 
