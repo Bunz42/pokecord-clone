@@ -16,7 +16,7 @@ if token is None:
 intents = Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='.', intents=intents)
+bot = commands.Bot(command_prefix='p!', intents=intents)
 
 with open('advanced_pokemon_data.json', 'r') as file:
     POKEMON_DATA = json.load(file)
