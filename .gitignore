@@ -2,3 +2,4 @@ venv/
 assets/
 .env
 resize_asset.py
+.venv/
