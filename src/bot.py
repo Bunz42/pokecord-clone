@@ -76,8 +76,9 @@ async def handle_msg_spawn(message):
 
 # -------------------------------------------------COMMANDS----------------------------------------------------------- #
 @bot.command(name="catch")
-async def catch(ctx):
-    await ctx.send
+async def catch(ctx, pokemon: str):
+    username = ctx.author.mention
+    await ctx.send(f"Congratulations {username}, you caught a **{pokemon.title()}**")
 
 
 # Run the bot
