@@ -6,6 +6,8 @@ import json
 import os
 from dotenv import load_dotenv
 
+from database import create_db_pool, setup_tables
+
 # -------------------------------------------------ENV VAR + BOT SETUP----------------------------------------------------------- #
 
 load_dotenv()
@@ -16,7 +18,17 @@ if token is None:
 intents = Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='p!', intents=intents)
+# bot child class that contains database pool
+class PokecordBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix='p!', intents=intents)
+        self.pool = None
+    
+    async def setup_hook(self):
+        self.pool = await create_db_pool()
+        await setup_tables(self.pool)
+
+bot = PokecordBot()
 
 with open('advanced_pokemon_data.json', 'r') as file:
     POKEMON_DATA = json.load(file)
@@ -70,10 +82,40 @@ async def handle_msg_spawn(message):
 
 
 # -------------------------------------------------COMMANDS----------------------------------------------------------- #
+@bot.command(name="balance", aliases=["bal"])
+async def give_daily_balance(ctx):
+    player_id = ctx.author.id
+    player_name = ctx.author.display_name
+    rand_bal_addition = random.randint(100, 1000) # use this for random balance additions
+    # TODO: implement time tracking to make it so you can only bal once per day
+    # print(player_id)
+    try:
+        async with ctx.bot.pool.acquire() as conn:
+
+            """
+            query to update a player's balance (temporary implementation for insertion of player if they don't exist 
+            in db yet: migrate this to the starter command and add gates to all other cmds
+            """
+
+            await conn.execute('''
+                INSERT INTO players (discord_id, balance, name)
+                VALUES ($1, 100, $2)
+                ON CONFLICT (discord_id)
+                DO UPDATE SET balance = players.balance + 100
+            ''', player_id, player_name)
+            print("Succesfully updated player balance. Check your tables.")
+    except Exception as e:
+        print(f"Failed to update player balance with exception {e}")
+
 @bot.command(name="catch")
-async def catch(ctx, pokemon: str):
+async def catch(ctx, pokemon: str, entered_pokemon: str):
     username = ctx.author.mention
-    await ctx.send(f"Congratulations {username}, you caught a **{pokemon.title()}**")
+    if entered_pokemon.lower() == pokemon.lower():
+        bot_msg = f"Congratulations {username}, you caught a **{pokemon.title()}**"
+    else:
+        bot_msg = f"{username} That's not the correct pokemon. Try again."
+    
+    await ctx.send(bot_msg)
 
 
 # Run the bot
