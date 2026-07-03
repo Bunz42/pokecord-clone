@@ -1,4 +1,4 @@
 venv/
-assets/
 .env
-resize_asset.py
+.venv/
+query_editor.sql
