@@ -1,10 +1,12 @@
 from discord import Embed, Color, Intents, File
 from discord.ext import commands
+
 import random
 import json
-
 import os
 from dotenv import load_dotenv
+
+from database import create_db_pool, setup_tables
 
 # -------------------------------------------------ENV VAR + BOT SETUP----------------------------------------------------------- #
 
@@ -16,17 +18,26 @@ if token is None:
 intents = Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='p!', intents=intents)
+# bot child class that contains database pool
+class PokecordBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix='p!', intents=intents)
+        self.pool = None
+    
+    async def setup_hook(self):
+        self.pool = await create_db_pool()
+        await setup_tables(self.pool)
+
+        # load cogs
+        await self.load_extension("cogs.economy")
+
+bot = PokecordBot()
 
 with open('advanced_pokemon_data.json', 'r') as file:
     POKEMON_DATA = json.load(file)
 
 POKEMON_IDS = list(POKEMON_DATA.keys())
 SPAWN_WEIGHTS = [data["weight"] for data in POKEMON_DATA.values()]
-
-# -------------------------------------------------FUNCTIONS----------------------------------------------------------- #
-async def function(param):
-    pass 
 
 # -------------------------------------------------EVENTS----------------------------------------------------------- #
 
@@ -46,11 +57,6 @@ async def handle_msg_spawn(message):
         pokemon_info = POKEMON_DATA[spawn_id]
         name = pokemon_info["name"]
         is_rare = pokemon_info["is_rare"] # can use this flag to make legendary/mythic embeds yellow instead of green
-
-        # with open('pokemon_data.json' , 'r') as file: # access pokemon data (name and id)
-        #     data = json.load(file)
-        #     id = random.randint(1, 1025)
-        #     name = data[str(id)]
             
         print(f"Spawned a: {name.title()} (Rare: {is_rare})") # print name and rarity for testing purposes
 
@@ -76,8 +82,14 @@ async def handle_msg_spawn(message):
 
 # -------------------------------------------------COMMANDS----------------------------------------------------------- #
 @bot.command(name="catch")
-async def catch(ctx):
-    await ctx.send
+async def catch(ctx, pokemon: str, entered_pokemon: str):
+    username = ctx.author.mention
+    if entered_pokemon.lower() == pokemon.lower():
+        bot_msg = f"Congratulations {username}, you caught a **{pokemon.title()}**"
+    else:
+        bot_msg = f"{username} That's not the correct pokemon. Try again."
+    
+    await ctx.send(bot_msg)
 
 
 # Run the bot

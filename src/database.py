@@ -14,7 +14,9 @@ async def setup_tables(pool):
         await conn.execute('''
             CREATE TABLE IF NOT EXISTS players (
                 discord_id bigint primary key,
-                balance integer default 0
+                name text,
+                balance integer default 0,
+                last_daily timestamp
             )
         ''')
 
