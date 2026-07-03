@@ -46,11 +46,6 @@ async def handle_msg_spawn(message):
         pokemon_info = POKEMON_DATA[spawn_id]
         name = pokemon_info["name"]
         is_rare = pokemon_info["is_rare"] # can use this flag to make legendary/mythic embeds yellow instead of green
-
-        # with open('pokemon_data.json' , 'r') as file: # access pokemon data (name and id)
-        #     data = json.load(file)
-        #     id = random.randint(1, 1025)
-        #     name = data[str(id)]
             
         print(f"Spawned a: {name.title()} (Rare: {is_rare})") # print name and rarity for testing purposes
 
