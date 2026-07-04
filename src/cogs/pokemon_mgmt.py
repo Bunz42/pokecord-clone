@@ -2,6 +2,7 @@ from discord import Embed, Color, File
 from discord.ext import commands
 import random
 import json
+from cache import get_active_spawn, set_active_spawn, delete_active_spawn
 
 class PokemonManager(commands.Cog):
     def __init__(self, bot):
@@ -14,6 +15,7 @@ class PokemonManager(commands.Cog):
         self.POKEMON_IDS = list(self.POKEMON_DATA.keys())
         self.SPAWN_WEIGHTS = [pokemon["weight"] for pokemon in self.POKEMON_DATA.values()]
         self.SPAWN_RATE = 0.5 # 50% spawn rate per msg
+        self.SHINY_CHANCE = 0.5 #50% chance of shiny spawn
 
 
     # -------------------------------------------------LISTENERS----------------------------------------------------------- #
@@ -28,21 +30,29 @@ class PokemonManager(commands.Cog):
             pokemon_info = self.POKEMON_DATA[spawn_id]
             name = pokemon_info["name"]
             is_rare = pokemon_info["is_rare"] # can use this flag to make legendary/mythic embeds yellow instead of green
-                
+            is_shiny = random.random() < self.SHINY_CHANCE # flag for shiny
+
+            cached_data = pokemon_info.copy()
+            cached_data["is_shiny"] = is_shiny
+            channel = message.channel.id
+
+            # set ttl_seconds to 30s and add some sort of ui that disallows catching if player fails to catch within 30s
+            await set_active_spawn(self.bot.redis, channel, cached_data, ttl_seconds=30)
+            # no need to get from redis here - pokemon_info has everything we need for rendering already
+
             print(f"Spawned a: {name.title()} (Rare: {is_rare})") # print name and rarity for testing purposes
 
-            directory = "shiny" if random.random() < 0.5 else "regular" # shiny spawning logic
-            if directory == "shiny":
+            directory = "shiny" if is_shiny else "regular" # shiny spawning logic
+            if is_shiny:
                 spawn_title = "⭐ A wild SHINY Pokémon appeared! ⭐"
             else:
                 spawn_title = "A wild Pokémon appeared!"
-
 
             file = File(f"assets/official-artwork/{directory}/{spawn_id}.png", filename=f"{spawn_id}.png")
 
             embed = Embed(
                 title=spawn_title,
-                description="Guess the pokemon and type .catch <pokemon> to catch it!",
+                description="Guess the pokemon and type p!catch <pokemon> to catch it!",
                 color=Color.green() if not is_rare else Color.yellow(),
             )
 
