@@ -19,10 +19,9 @@ class PokemonManager(commands.Cog):
 
 
     # -------------------------------------------------LISTENERS----------------------------------------------------------- #
-
     @commands.Cog.listener("on_message")
     async def handle_msg_spawn(self, message):
-        if message.author == self.bot.user:
+        if message.author == self.bot.user or message.content.startswith("p!"):
             return
 
         if random.random() < self.SPAWN_RATE:
@@ -36,7 +35,7 @@ class PokemonManager(commands.Cog):
             cached_data["is_shiny"] = is_shiny
             channel = message.channel.id
 
-            # set ttl_seconds to 30s and add some sort of ui that disallows catching if player fails to catch within 30s
+            # set ttl_seconds to 30s and TODO: add some sort of ui that disallows catching if player fails to catch within 30s
             await set_active_spawn(self.bot.redis, channel, cached_data, ttl_seconds=30)
             # no need to get from redis here - pokemon_info has everything we need for rendering already
 
@@ -52,7 +51,7 @@ class PokemonManager(commands.Cog):
 
             embed = Embed(
                 title=spawn_title,
-                description="Guess the pokemon and type p!catch <pokemon> to catch it!",
+                description="You have 30 seconds to guess the pokemon and type p!catch <pokemon> to catch it!",
                 color=Color.green() if not is_rare else Color.yellow(),
             )
 
@@ -61,23 +60,37 @@ class PokemonManager(commands.Cog):
             await message.channel.send(file=file, embed=embed)
 
     # -------------------------------------------------COMMANDS----------------------------------------------------------- #
-    
     @commands.command(name="catch")
-    async def catch(self, ctx, entered_pokemon: str, pokemon: str):
-        username = ctx.author.mention
-        author_id = ctx.author.id
+    async def catch(self, ctx, entered_pokemon: str):
+        channel_id = ctx.channel.id
+        spawned_pokemon_data = await get_active_spawn(self.bot.redis, channel_id)
 
-        if entered_pokemon.lower() == pokemon.lower():
+        if not spawned_pokemon_data:
+            return await ctx.send("There's no wild Pokemon to catch right now!")
+
+        username = ctx.author.mention
+        owner_id = ctx.author.id
+        pokemon_name = spawned_pokemon_data['name']
+        is_shiny = spawned_pokemon_data['is_shiny']
+        is_rare = spawned_pokemon_data['is_rare']
+
+        query = '''
+            INSERT INTO caught_pokemon (owner_id, is_shiny, caught_at, is_rare, name)
+            VALUES ($1, $2, NOW(), $3, $4)
+        '''
+
+        # print(f"entered pokemon: {entered_pokemon}, pokemon name: {pokemon_name}")
+
+        if entered_pokemon.lower() == pokemon_name.lower():
             try:
                 async with self.bot.pool.acquire() as conn:
-                    await conn.execute('''
-                        INSERT INTO caught_pokemon (owner_id, is_shiny, caught_at, is_rare)
-                        VALUES ($1, $2, NOW(), $3)
-                    ''')
-                    pass
+                    await conn.execute(query, owner_id, is_shiny, is_rare, pokemon_name)
             except Exception as e:
                 print(f"Failed to update pokemon to database with exception {e}")
-            bot_msg = f"Congratulations {username}, you caught a **{pokemon.title()}**"
+                return await ctx.send("Something went wrong catching that Pokemon - try again.")
+
+            await delete_active_spawn(self.bot.redis, channel_id)
+            bot_msg = f"Congratulations {username}, you caught a **{pokemon_name.title()}**"
             
         else:
             bot_msg = f"{username} That's not the correct pokemon. Try again."
