@@ -2,4 +2,4 @@ venv/
 .env
 .venv/
 query_editor.sql
-src/__pycache__
+__pycache__
