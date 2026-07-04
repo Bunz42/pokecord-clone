@@ -20,11 +20,12 @@ async def setup_tables(pool):
             )
         ''')
 
+        # TODO: temporary implementation for caught_pokemon table creation. See google docs for proper schema.
         await conn.execute('''
             CREATE TABLE IF NOT EXISTS caught_pokemon (
                 id serial primary key,
                 owner_id bigint references players(discord_id),
-                species_id integer,
+                is_rare boolean,
                 is_shiny boolean,
                 caught_at timestamp default current_timestamp
             )
