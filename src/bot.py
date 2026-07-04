@@ -48,9 +48,6 @@ async def on_ready():
     print(f'Successfully logged in as {bot.user} (ID: {bot.user.id})') # type: ignore
     print('------')
 
-# -------------------------------------------------COMMANDS----------------------------------------------------------- #
-
-
 # Run the bot
 if __name__ == '__main__':
     bot.run(token)
