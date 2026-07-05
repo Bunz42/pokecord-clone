@@ -25,6 +25,7 @@ async def setup_tables(pool):
             CREATE TABLE IF NOT EXISTS caught_pokemon (
                 id serial primary key,
                 owner_id bigint references players(discord_id),
+                name text,
                 is_rare boolean,
                 is_shiny boolean,
                 caught_at timestamp default current_timestamp

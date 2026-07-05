@@ -1,8 +1,6 @@
-from discord import Embed, Color, Intents, File
+from discord import Intents
 from discord.ext import commands
 
-import random
-import json
 import os
 from dotenv import load_dotenv
 
@@ -41,12 +39,6 @@ class PokecordBot(commands.Bot):
         await super().close() # this closes the bot since we're overriding the commands.Bot close function
 
 bot = PokecordBot()
-
-with open('advanced_pokemon_data.json', 'r') as file:
-    POKEMON_DATA = json.load(file)
-
-POKEMON_IDS = list(POKEMON_DATA.keys())
-SPAWN_WEIGHTS = [data["weight"] for data in POKEMON_DATA.values()]
 
 # -------------------------------------------------EVENTS----------------------------------------------------------- #
 
