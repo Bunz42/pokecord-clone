@@ -41,6 +41,12 @@ async def setup_tables(pool):
                 iv_spatk smallint CONSTRAINT chk_iv_spatk CHECK (iv_spatk BETWEEN 0 AND 31),
                 iv_spdef smallint CONSTRAINT chk_iv_spdef CHECK (iv_spdef BETWEEN 0 AND 31),
                 iv_speed smallint CONSTRAINT chk_iv_speed CHECK (iv_speed BETWEEN 0 AND 31),
+                total_iv_percent NUMERIC(5, 2) GENERATED ALWAYS AS (
+                    ROUND (
+                        ((iv_hp + iv_atk + iv_def + iv_spatk + iv_spdef + iv_speed)::NUMERIC / 186.0) * 100.0,
+                        2
+                    )
+                ) STORED,
                 move_1 int,     
                 move_2 int,     
                 move_3 int,     

@@ -9,11 +9,11 @@ class PokemonManager(commands.Cog):
         self.bot = bot # store bot ref for access to conn pool
         
         # load the pokemon data when this cog is created so I can access it wherever in this cog
-        with open('advanced_pokemon_data.json', 'r') as file:
+        with open('master_pokemon_data.json', 'r') as file:
             self.POKEMON_DATA = json.load(file)
 
         self.POKEMON_IDS = list(self.POKEMON_DATA.keys())
-        self.SPAWN_WEIGHTS = [pokemon["weight"] for pokemon in self.POKEMON_DATA.values()]
+        self.SPAWN_WEIGHTS = [pokemon["capture_rate"] for pokemon in self.POKEMON_DATA.values()]
         self.SPAWN_RATE = 0.5 # 50% spawn rate per msg
         self.SHINY_CHANCE = 0.5 #50% chance of shiny spawn
 
@@ -31,8 +31,26 @@ class PokemonManager(commands.Cog):
             is_rare = pokemon_info["is_rare"] # can use this flag to make legendary/mythic embeds yellow instead of green
             is_shiny = random.random() < self.SHINY_CHANCE # flag for shiny
 
+            # IV ROLLS
+            iv_hp = random.randint(1, 31)
+            iv_atk = random.randint(1, 31)
+            iv_def = random.randint(1, 31)
+            iv_spatk = random.randint(1, 31)
+            iv_spdef = random.randint(1, 31)
+            iv_speed = random.randint(1, 31)
+
+            # SETUP SPAWNED POKEMON CACHING
             cached_data = pokemon_info.copy()
             cached_data["is_shiny"] = is_shiny
+            cached_data["iv_hp"] = iv_hp
+            cached_data["iv_atk"] = iv_atk
+            cached_data["iv_def"] = iv_def
+            cached_data["iv_spatk"] = iv_spatk
+            cached_data["iv_spdef"] = iv_spdef
+            cached_data["iv_speed"] = iv_speed
+
+            print(cached_data)
+
             channel = message.channel.id
 
             # set ttl_seconds to 30s and TODO: add some sort of ui that disallows catching if player fails to catch within 30s
