@@ -28,55 +28,42 @@ import time
     
 #     print("Successfully saved 1025 Pokémon to pokemon_data.json!")
 
-def generate_advanced_database():
+def build_pokemon_data():
     pokemon_db = {}
-    print("Fetching 1025 Pokémon species data... (This will take about 2 minutes)")
+    print("Fetching Pokémon species data... (This will take a few minutes...)")
 
     # Loop through all 1025 base Pokemon
     for i in range(1, 1026):
-        url = f"https://pokeapi.co/api/v2/pokemon-species/{i}/"
-        response = requests.get(url)
+        species_response = requests.get(f"https://pokeapi.co/api/v2/pokemon-species/{i}/").json()
+        base_response = requests.get(f"https://pokeapi.co/api/v2/pokemon/{i}/").json()
         
-        if response.status_code == 200:
-            data = response.json()
-            
-            # 1. Grab the name
-            name = data['name']
-            
-            # 2. Grab the capture rate (3 to 255). We will use this as the spawn weight!
-            # If a capture rate is missing for some reason, default to 45 (average).
-            capture_rate = data.get('capture_rate', 45)
-            
-            # 3. Check if it's Legendary or Mythical
-            is_legendary = data.get('is_legendary', False)
-            is_mythical = data.get('is_mythical', False)
-            
-            # Force legendary/mythical spawn weights to be EXTREMELY low
-            # even if their capture rate is weirdly high.
-            if is_legendary or is_mythical:
-                spawn_weight = 1  # Super rare!
-            else:
-                spawn_weight = capture_rate # Common pokemon (255) spawn 255x more often than legendaries (1)
-            
-            # Save it to our dictionary
-            pokemon_db[str(i)] = {
-                "name": name,
-                "weight": spawn_weight,
-                "is_rare": is_legendary or is_mythical
-            }
-            
-            # Print progress every 100 Pokemon
-            if i % 100 == 0:
-                print(f"Processed {i}/1025...")
-                
-        # Sleep for a tiny bit so PokéAPI doesn't ban our IP address for spamming
-        time.sleep(0.1) 
+        parsed_stats = {stat['stat']['name']: stat['base_stat'] for stat in base_response['stats']}
+    
+        # Parse Move Pool
+        # We just want a list of move names this pokemon can legally learn
+        valid_moves = [move['move']['name'] for move in base_response['moves']]
+        
+        # Parse Types
+        types = [t['type']['name'] for t in base_response['types']]
 
-    # Save to JSON
-    with open('advanced_pokemon_data.json', 'w') as f:
+        # Merge it all together
+        pokemon_db[str(i)] = {
+            "name": base_response['name'],
+            "is_rare": species_response.get('is_legendary', False) or species_response.get('is_mythical', False),
+            "capture_rate": species_response.get('capture_rate', 45),
+            "types": types,
+            "base_stats": parsed_stats,
+            "valid_moves": valid_moves
+        }
+        
+        if i % 50 == 0:
+            print(f"Processed {i}/1025...")
+        time.sleep(0.2) # Be nice to PokeAPI!
+
+    with open('master_pokemon_data.json', 'w') as f:
         json.dump(pokemon_db, f, indent=4)
         
-    print("Successfully built the advanced rarity database!")
+    print("Master database built successfully!")
 
 if __name__ == "__main__":
-    generate_advanced_database()
+    build_pokemon_data()
