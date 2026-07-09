@@ -16,8 +16,8 @@ class PokemonManager(commands.Cog):
 
         self.POKEMON_IDS = list(self.POKEMON_DATA.keys())
         self.SPAWN_WEIGHTS = [pokemon["spawn_weight"] for pokemon in self.POKEMON_DATA.values()]
-        self.SPAWN_RATE = 0.5 # 50% spawn rate per msg
-        self.SHINY_CHANCE = 0.5 #50% chance of shiny spawn
+        self.SPAWN_RATE = 0.05 # 5% spawn rate per msg
+        self.SHINY_CHANCE = 1/4096 # original pokemon game shiny rate
 
 
     # -------------------------------------------------HELPER FUNCTIONS------------------------------------------------- #
