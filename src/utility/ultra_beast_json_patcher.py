@@ -1,6 +1,7 @@
 import json
 
 def patch_json_data():
+    # Run rebalance_spawn_weights.py after this to get final, tier-normalized weights.
     filename = './ultimate_pokemon_data.json'
     
     # Hardcoded set of Ultra Beasts for blazing fast lookups
