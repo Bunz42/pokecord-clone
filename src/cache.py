@@ -26,6 +26,14 @@ async def get_active_spawn(redis_client, channel_id: int) -> dict:
 async def delete_active_spawn(redis_client, channel_id: int):
     await redis_client.delete(str(channel_id))
 
+# CACHE OPERATIONS FOR INVENTORY DISPLAY
+async def set_pokemon_page(redis_client, owner_id: int, page: int, ttl_seconds: int = 120):
+    await redis_client.set(f"pokemon_page:{owner_id}", page, ex=ttl_seconds)
+
+async def get_pokemon_page(redis_client, owner_id: int) -> int:
+    page = await redis_client.get(f"pokemon_page:{owner_id}")
+    return int(page) if page is not None else 0
+
 # script for testing the redis db connection
 async def test_connection():
     from dotenv import load_dotenv
