@@ -27,7 +27,8 @@ def build_ultimate_database():
             capture_rate = species_res.get('capture_rate', 45)
             flavor_text = get_english_flavor_text(species_res.get('flavor_text_entries', []))
             
-            # Calculate spawn weight instead of saving capture rate
+            # Provisional spawn weight only - run ultra_beast_json_patcher.py then
+            # rebalance_spawn_weights.py after this to get final, tier-normalized weights.
             if is_legendary or is_mythical:
                 spawn_weight = 1 # Make them incredibly rare
             else:
