@@ -1,8 +1,10 @@
+import math
+
 from discord import Embed, Color, File
 from discord.ext import commands
 import random
 import json
-from cache import get_active_spawn, set_active_spawn, delete_active_spawn
+from cache import get_active_spawn, set_active_spawn, delete_active_spawn, set_pokemon_page, get_pokemon_page
 
 class PokemonManager(commands.Cog):
     def __init__(self, bot):
@@ -17,6 +19,47 @@ class PokemonManager(commands.Cog):
         self.SPAWN_RATE = 0.5 # 50% spawn rate per msg
         self.SHINY_CHANCE = 0.5 #50% chance of shiny spawn
 
+
+    # -------------------------------------------------HELPER FUNCTIONS------------------------------------------------- #
+    async def _send_pokemon_page(self, ctx, owner_id: int, page: int):
+        query = '''
+            SELECT *, COUNT(*) OVER() AS total_count
+            FROM caught_pokemon
+            WHERE owner_id = $1
+            ORDER BY id
+            LIMIT $2 OFFSET $3
+        '''
+
+        try:
+            async with self.bot.pool.acquire() as conn:
+                caught_pokemon = await conn.fetch(query, owner_id, 20, page * 20)
+        except Exception as e:
+            print(f"Failed to fetch caught pokemon with exception {e}")
+            return await ctx.send("Something went wrong fetching your pokemon - Try again.")
+        
+        total_count = caught_pokemon[0]["total_count"] if caught_pokemon else 0
+        total_pages = max(1, math.ceil(total_count / 20))
+        page = max(0, min(page, total_pages - 1)) # clamp first and last page
+
+        if not caught_pokemon:
+            return await ctx.send("You haven't caught any Pokemon yet!")
+
+        embed = Embed(
+            title=f"{ctx.author.display_name}'s Pokemon", 
+            color=Color.red()
+        )
+
+        for row in caught_pokemon:
+            name = self.POKEMON_DATA[str(row["species_id"])]["name"].title()
+            embed.add_field(
+                name=f"**{name}** {"⭐" if row["is_shiny"] else ""} {"**| LEGENDARY |**" if row["is_legendary"] else ""} {"**| MYTHICAL |**" if row["is_mythical"] else ""} {"**| ULTRA BEAST |**" if row["is_ultra_beast"] else ""}",
+                value=f"Lvl: {row["level"]} | Number: {row["id"]} | IV: {row["total_iv_percent"]}%",
+                inline=False,
+            )
+        embed.set_footer(text=f"Page {page + 1}/{total_pages} Type p!pokemon next or p!pokemon prev to navigate!")
+
+        await set_pokemon_page(self.bot.redis, owner_id, page)
+        await ctx.send(embed=embed)
 
     # -------------------------------------------------LISTENERS----------------------------------------------------------- #
     @commands.Cog.listener("on_message")
@@ -171,5 +214,19 @@ class PokemonManager(commands.Cog):
         
         await ctx.send(bot_msg)
 
+    @commands.group(name="pokemon", invoke_without_command=True)
+    async def display_player_pokemon(self, ctx):
+        await self._send_pokemon_page(ctx, ctx.author.id, page=0)
+
+    @display_player_pokemon.command(name="next")
+    async def next_page(self, ctx):
+        current = await get_pokemon_page(self.bot.redis, ctx.author.id)
+        await self._send_pokemon_page(ctx, ctx.author.id, page=current + 1)
+
+    @display_player_pokemon.command(name="prev")
+    async def prev_page(self, ctx):
+        current = await get_pokemon_page(self.bot.redis, ctx.author.id)
+        await self._send_pokemon_page(ctx, ctx.author.id, page=current - 1)
+        
 async def setup(bot):
     await bot.add_cog(PokemonManager(bot=bot))
