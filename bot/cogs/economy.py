@@ -73,8 +73,8 @@ class Economy(commands.Cog):
                 await ctx.send(f"{mention} you haven't picked your starter pokemon yet!")
             else:
                 embed=Embed(
-                    title=f"**${balance}**",
-                    description=f"{username.title()}'s balance 💰",
+                    title=f"{username.title()}'s balance 💰",
+                    description=f"You currently have **{balance}** credits.",
                     color=Color.yellow()
                 )
                 await ctx.send(embed=embed)
