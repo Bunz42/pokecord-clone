@@ -361,7 +361,7 @@ class PokemonManager(commands.Cog):
                     artwork_file = File(f"assets/official-artwork/{directory}/{row['species_id']}.png", filename=f"{row['species_id']}.png")
 
                     embed = Embed(
-                        title=f"Level {row['level']} {species_data['name'].title()}",
+                        title=f"Level {row['level']} {species_data['name'].title()} {" ⭐" if row['is_shiny'] else ""}",
                         description=description,
                         color=embed_color
                     )
