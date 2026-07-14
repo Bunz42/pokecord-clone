@@ -1,4 +1,5 @@
 from discord.ext import commands
+from discord import Color, Embed
 import random
 
 class Economy(commands.Cog):
@@ -8,7 +9,6 @@ class Economy(commands.Cog):
     @commands.command(name="daily")
     async def give_daily_balance(self, ctx):
         player_id = ctx.author.id
-        player_name = ctx.author.display_name
         rand_bal_addition = random.randint(300, 1000) # TODO: use this for random balance additions
         player_mention = ctx.author.mention
 
@@ -24,23 +24,23 @@ class Economy(commands.Cog):
                 """
 
                 row = await conn.fetchrow('''
-                    INSERT INTO players (discord_id, name, balance, last_daily)
-                    VALUES ($1, $2, $3, now())
+                    INSERT INTO players (discord_id, balance, last_daily)
+                    VALUES ($1, $2, now())
                     ON CONFLICT (discord_id)
                     DO UPDATE SET 
-                        balance = players.balance + $3,
+                        balance = players.balance + $2,
                         last_daily = now()
                     WHERE players.last_daily IS NULL
-                        OR players.last_daily < now() - interval '10 minutes'
+                        OR players.last_daily < now() - interval '1 day'
                     RETURNING balance
-                ''', player_id, player_name, rand_bal_addition)
+                ''', player_id, rand_bal_addition)
 
                 if row is None:
 
                     # Interval for daily claims set to 10 minutes right now for testing purposes. Change to '1 day' in the UPDATE and the SELECT query for actual.
 
                     remaining_time = await conn.fetchval('''
-                        SELECT (last_daily + interval '10 minutes') - now() 
+                        SELECT (last_daily + interval '1 day') - now() 
                         FROM players
                         WHERE discord_id = $1
                     ''', player_id)
@@ -54,6 +54,30 @@ class Economy(commands.Cog):
                     await ctx.send(f"{player_mention} you claimed **{rand_bal_addition}** coins! Your new balance is **${row['balance']}.**")
         except Exception as e:
             print(f"Failed to update player balance with exception {e}")
+
+    @commands.command(name="balance", aliases=['bal'])
+    async def show_balance(self, ctx):
+        player_id = ctx.author.id
+        mention = ctx.author.mention
+        username = ctx.author.display_name
+        
+        query = '''
+            SELECT balance FROM players
+            WHERE discord_id = $1
+        '''
+
+        async with self.bot.pool.acquire() as conn:
+            balance = await conn.fetchval(query, player_id)
+
+            if balance is None:
+                await ctx.send(f"{mention} you haven't picked your starter pokemon yet!")
+            else:
+                embed=Embed(
+                    title=f"**${balance}**",
+                    description=f"{username.title()}'s balance 💰",
+                    color=Color.yellow()
+                )
+                await ctx.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Economy(bot=bot))
