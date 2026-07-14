@@ -10,7 +10,7 @@ async def get_redis_client():
     
     return redis.from_url(redis_url, decode_responses=True)
 
-# CACHE OPERATIONS FOR SPAWN LOOP
+# ---------------------------------------- CACHE OPERATIONS FOR SPAWN LOOP ----------------------------------------
 async def set_active_spawn(redis_client, channel_id: int, spawn_data: dict, ttl_seconds: int = 900):
     data_string = json.dumps(spawn_data)
     await redis_client.set(str(channel_id), data_string, ex=ttl_seconds) # stores as key: str (channel id), json: dict (data_string) pairs
@@ -26,7 +26,7 @@ async def get_active_spawn(redis_client, channel_id: int) -> dict:
 async def delete_active_spawn(redis_client, channel_id: int):
     await redis_client.delete(str(channel_id))
 
-# CACHE OPERATIONS FOR INVENTORY DISPLAY
+# ---------------------------------------- CACHE OPERATIONS FOR INVENTORY DISPLAY ----------------------------------------
 async def set_pokemon_page(redis_client, owner_id: int, page: int, ttl_seconds: int = 120):
     await redis_client.set(f"pokemon_page:{owner_id}", page, ex=ttl_seconds)
 

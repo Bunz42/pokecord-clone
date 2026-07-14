@@ -20,7 +20,7 @@ intents.message_content = True
 # bot child class that contains database pool
 class PokecordBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix='p!', intents=intents)
+        super().__init__(command_prefix='p!', intents=intents, help_command=None)
         self.pool = None
         self.redis = None
     
@@ -32,6 +32,7 @@ class PokecordBot(commands.Bot):
         # load cogs
         await self.load_extension("cogs.economy")
         await self.load_extension("cogs.pokemon_mgmt")
+        await self.load_extension("cogs.util")
     
     async def close(self):
         if self.redis:

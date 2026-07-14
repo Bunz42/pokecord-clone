@@ -6,6 +6,33 @@ import random
 import json
 from cache import get_active_spawn, set_active_spawn, delete_active_spawn, set_pokemon_page, get_pokemon_page
 
+NATURE_MODIFIERS = {
+    "hardy": {}, "lonely": {"increased": "attack", "decreased": "defense"},
+    "brave": {"increased": "attack", "decreased": "speed"},
+    "adamant": {"increased": "attack", "decreased": "special-attack"},
+    "naughty": {"increased": "attack", "decreased": "special-defense"},
+    "bold": {"increased": "defense", "decreased": "attack"},
+    "docile": {},
+    "relaxed": {"increased": "defense", "decreased": "speed"},
+    "impish": {"increased": "defense", "decreased": "special-attack"},
+    "lax": {"increased": "defense", "decreased": "special-defense"},
+    "timid": {"increased": "speed", "decreased": "attack"},
+    "hasty": {"increased": "speed", "decreased": "defense"},
+    "serious": {},
+    "jolly": {"increased": "speed", "decreased": "special-attack"},
+    "naive": {"increased": "speed", "decreased": "special-defense"},
+    "modest": {"increased": "special-attack", "decreased": "attack"},
+    "mild": {"increased": "special-attack", "decreased": "defense"},
+    "quiet": {"increased": "special-attack", "decreased": "speed"},
+    "bashful": {},
+    "rash": {"increased": "special-attack", "decreased": "special-defense"},
+    "calm": {"increased": "special-defense", "decreased": "attack"},
+    "gentle": {"increased": "special-defense", "decreased": "defense"},
+    "sassy": {"increased": "special-defense", "decreased": "speed"},
+    "careful": {"increased": "special-defense", "decreased": "special-attack"},
+    "quirky": {},
+}
+
 class PokemonManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot # store bot ref for access to conn pool
@@ -21,6 +48,32 @@ class PokemonManager(commands.Cog):
 
 
     # -------------------------------------------------HELPER FUNCTIONS------------------------------------------------- #
+    def _get_rarity_color(self, pokemon):
+        if pokemon["is_shiny"]:
+            return Color.gold()
+        elif pokemon["is_legendary"]:
+            return Color.yellow()
+        elif pokemon["is_mythical"]:
+            return Color.magenta()
+        elif pokemon["is_ultra_beast"]:
+            return Color.red()
+        return Color.green()
+
+    def _calculate_stats(self, base_stats, ivs, level, nature):
+        nature_mods = NATURE_MODIFIERS.get(nature.lower(), {})
+
+        stats = {"hp": (2 * base_stats["hp"] + ivs["hp"]) * level // 100 + level + 10}
+
+        for stat in ("attack", "defense", "special-attack", "special-defense", "speed"):
+            value = (2 * base_stats[stat] + ivs[stat]) * level // 100 + 5
+            if nature_mods.get("increased") == stat:
+                value = math.floor(value * 1.1)
+            elif nature_mods.get("decreased") == stat:
+                value = math.floor(value * 0.9)
+            stats[stat] = value
+
+        return stats
+
     async def _send_pokemon_page(self, ctx, owner_id: int, page: int):
         query = '''
             SELECT *, COUNT(*) OVER() AS total_count
@@ -53,7 +106,7 @@ class PokemonManager(commands.Cog):
             name = self.POKEMON_DATA[str(row["species_id"])]["name"].title()
             embed.add_field(
                 name=f"**{name}** {"⭐" if row["is_shiny"] else ""} {"**| LEGENDARY |**" if row["is_legendary"] else ""} {"**| MYTHICAL |**" if row["is_mythical"] else ""} {"**| ULTRA BEAST |**" if row["is_ultra_beast"] else ""}",
-                value=f"Lvl: {row["level"]} | Number: {row["id"]} | IV: {row["total_iv_percent"]}%",
+                value=f"Level: {row["level"]} | Number: {row["id"]} | IV: {row["total_iv_percent"]}%",
                 inline=False,
             )
         embed.set_footer(text=f"Page {page + 1}/{total_pages} Type p!pokemon next or p!pokemon prev to navigate!")
@@ -116,13 +169,8 @@ class PokemonManager(commands.Cog):
 
             if is_shiny:
                 spawn_title = "⭐ A wild SHINY Pokémon appeared! ⭐"
-                embed_color = Color.orange()
-            elif is_legendary:
-                embed_color = Color.yellow()
-            elif is_mythical:
-                embed_color = Color.magenta()
-            else:
-                embed_color = Color.green()
+
+            embed_color = self._get_rarity_color(cached_data)
 
             file = File(f"assets/official-artwork/{directory}/{spawn_id}.png", filename=f"{spawn_id}.png")
 
@@ -227,6 +275,103 @@ class PokemonManager(commands.Cog):
     async def prev_page(self, ctx):
         current = await get_pokemon_page(self.bot.redis, ctx.author.id)
         await self._send_pokemon_page(ctx, ctx.author.id, page=current - 1)
+
+    @commands.command(name="select")
+    async def select_pokemon(self, ctx, pokemon_id: int):
+        player_id = ctx.author.id
+        player_mention = ctx.author.mention
+
+        query = '''
+            UPDATE players
+            SET active_pokemon_id = $1
+            FROM caught_pokemon
+            WHERE players.discord_id = $2
+                AND caught_pokemon.id = $1
+                AND caught_pokemon.owner_id = $2
+            RETURNING caught_pokemon.species_id
+        '''
+        try:
+            async with self.bot.pool.acquire() as conn:
+                species_id = await conn.fetchval(query, pokemon_id, player_id)
+
+            if species_id is None:
+                await ctx.send(f"{player_mention} you don't own a Pokemon with that ID.")
+            else:
+                pokemon_name = self.POKEMON_DATA[str(species_id)]["name"].title()
+                await ctx.send(f"{player_mention} your active Pokemon has been set to **{pokemon_name}** (#{pokemon_id}).")
+        except Exception as e:
+            print(f"Failed to select pokemon with exception {e}")
+            await ctx.send("Something went wrong selecting this pokemon.")
+
+    @commands.command(name="info")
+    async def display_selected_pokemon(self, ctx):
+        player_id = ctx.author.id
+        player_mention = ctx.author.mention
         
+        query = '''
+            SELECT caught_pokemon.*
+            FROM players
+            JOIN caught_pokemon ON caught_pokemon.id = players.active_pokemon_id
+            WHERE players.discord_id = $1
+        '''
+
+        try:
+            async with self.bot.pool.acquire() as conn:
+                row = await conn.fetchrow(query, player_id)
+
+                if row is None:
+                    await ctx.send(f"{player_mention} you don't have a pokemon selected! Use `p!select <number>` to select one!")
+                else:
+                    embed_color = self._get_rarity_color(row)
+
+                    species_data = self.POKEMON_DATA[str(row['species_id'])]
+                    form_data = species_data['forms'][row['form']]
+
+                    ivs = {
+                        "hp": row['iv_hp'],
+                        "attack": row['iv_atk'],
+                        "defense": row['iv_def'],
+                        "special-attack": row['iv_spatk'],
+                        "special-defense": row['iv_spdef'],
+                        "speed": row['iv_speed'],
+                    }
+                    stats = self._calculate_stats(form_data['base_stats'], ivs, row['level'], row['nature'])
+
+                    # TODO: no per-species growth rate data yet - assumes medium-fast (level^3) curve for every species
+                    xp_to_next_level = (row['level'] + 1) ** 3 - row['level'] ** 3
+
+                    types_line = " | ".join(t.title() for t in form_data['types'])
+
+                    description = "\n".join([
+                        f"{row['xp']}/{xp_to_next_level}XP",
+                        f"**Types:** {types_line}",
+                        f"**Nature:** {row['nature'].title()}",
+                        f"**HP:** {stats['hp']} - IV: {row['iv_hp']}/31",
+                        f"**Attack:** {stats['attack']} - IV: {row['iv_atk']}/31",
+                        f"**Defense:** {stats['defense']} - IV: {row['iv_def']}/31",
+                        f"**Sp. Atk:** {stats['special-attack']} - IV: {row['iv_spatk']}/31",
+                        f"**Sp. Def:** {stats['special-defense']} - IV: {row['iv_spdef']}/31",
+                        f"**Speed:** {stats['speed']} - IV: {row['iv_speed']}/31",
+                        f"**Total IV %:** {row['total_iv_percent']}%",
+                    ])
+
+                    oak_file = File("assets/professor_oak.jpg", filename="professor_oak.jpg")
+
+                    directory = "shiny" if row['is_shiny'] else "regular"
+                    artwork_file = File(f"assets/official-artwork/{directory}/{row['species_id']}.png", filename=f"{row['species_id']}.png")
+
+                    embed = Embed(
+                        title=f"Level {row['level']} {species_data['name'].title()} {" ⭐" if row['is_shiny'] else ""}",
+                        description=description,
+                        color=embed_color
+                    )
+                    embed.set_author(name="Professor Oak", icon_url="attachment://professor_oak.jpg")
+                    embed.set_image(url=f"attachment://{row['species_id']}.png")
+
+                    await ctx.send(files=[oak_file, artwork_file], embed=embed)
+
+        except Exception as e:
+            print(f"Failed to display pokemon info with exception {e}")
+
 async def setup(bot):
     await bot.add_cog(PokemonManager(bot=bot))
