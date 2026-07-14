@@ -1,7 +1,7 @@
 from discord.ext import commands
 from discord import Embed, Color
 
-class Util(commands.Cog):
+class Utility(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
     
@@ -13,10 +13,14 @@ class Util(commands.Cog):
             if cmds:
                 embed.add_field(
                     name=cog_name,
-                    value="\n".join(f"`p!{c.name}`" for c in cmds),
+                    value="\n".join(
+                        f"`{' or '.join(f'p!{n}' for n in (c.name, *c.aliases))}"
+                        + (f" {c.signature}`" if c.signature else "`")
+                        for c in cmds
+                    ),
                     inline=False
                 )
         await ctx.send(embed=embed)
 
 async def setup(bot):
-    await bot.add_cog(Util(bot=bot))
+    await bot.add_cog(Utility(bot=bot))
