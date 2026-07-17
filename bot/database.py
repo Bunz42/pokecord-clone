@@ -11,12 +11,15 @@ async def create_db_pool(): # pool is better than regular conn for pokecord sinc
 
 async def setup_tables(pool):
     async with pool.acquire() as conn:
+        # NOTE: players and caught_pokemon reference each other (circular FK), so
+        # players is created without the active_pokemon_id FK first; the constraint
+        # is added after caught_pokemon exists (see ALTER TABLE below).
         await conn.execute('''
             CREATE TABLE IF NOT EXISTS players (
                 discord_id bigint primary key,
                 balance integer default 0,
                 last_daily timestamp,
-                active_pokemon_id INTEGER REFERENCES caught_pokemon(id)
+                active_pokemon_id INTEGER
             )
         ''')
 
@@ -54,10 +57,26 @@ async def setup_tables(pool):
                 move_3 int,     
                 move_4 int, 
                 held_item_id int,
-                is_favorite boolean default false, 
+                is_favorite boolean default false,
                 caught_at timestamp default current_timestamp
             )
         ''')
+
+        # now that caught_pokemon exists, add the FK on players.active_pokemon_id.
+        # guarded so re-running setup_tables doesn't error on a duplicate constraint.
+        await conn.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'fk_active_pokemon'
+                ) THEN
+                    ALTER TABLE players
+                        ADD CONSTRAINT fk_active_pokemon
+                        FOREIGN KEY (active_pokemon_id) REFERENCES caught_pokemon(id);
+                END IF;
+            END $$;
+        ''')
+
         print("Tables created succesfully!")
         print("--------")
 

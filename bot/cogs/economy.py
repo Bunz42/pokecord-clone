@@ -17,41 +17,38 @@ class Economy(commands.Cog):
         try:
             async with self.bot.pool.acquire() as conn:
 
-                """
-                query to update a player's balance (temporary implementation for insertion of player if they don't exist 
-                in db yet: 
-                TODO -> migrate this to the starter command and add gates to all other cmds
-                """
-
+                # player registration now happens in p!pick, so daily only ever
+                # updates an existing player who has already chosen a starter.
                 row = await conn.fetchrow('''
-                    INSERT INTO players (discord_id, balance, last_daily)
-                    VALUES ($1, $2, now())
-                    ON CONFLICT (discord_id)
-                    DO UPDATE SET 
-                        balance = players.balance + $2,
+                    UPDATE players
+                    SET balance = balance + $2,
                         last_daily = now()
-                    WHERE players.last_daily IS NULL
-                        OR players.last_daily < now() - interval '1 day'
+                    WHERE discord_id = $1
+                        AND (last_daily IS NULL OR last_daily < now() - interval '1 day')
                     RETURNING balance
                 ''', player_id, rand_bal_addition)
 
-                if row is None:
-
-                    # Interval for daily claims set to 10 minutes right now for testing purposes. Change to '1 day' in the UPDATE and the SELECT query for actual.
-
-                    remaining_time = await conn.fetchval('''
-                        SELECT (last_daily + interval '1 day') - now() 
-                        FROM players
-                        WHERE discord_id = $1
-                    ''', player_id)
-
-                    remaining_seconds = int(remaining_time.total_seconds())
-                    hours, rem = divmod(remaining_seconds, 3600)
-                    minutes, seconds = divmod(rem, 60)
-
-                    await ctx.send(f"{player_mention} you've already claimed your daily! Come back in **{hours}h and {minutes}m**. ⏳")
-                else:
+                if row is not None:
                     await ctx.send(f"{player_mention} you claimed **{rand_bal_addition}** coins! Your new balance is **${row['balance']}.**")
+                    return
+
+                # no row updated: either the player doesn't exist yet, or they're on cooldown
+                remaining_time = await conn.fetchval('''
+                    SELECT (last_daily + interval '1 day') - now()
+                    FROM players
+                    WHERE discord_id = $1
+                ''', player_id)
+
+                if remaining_time is None:
+                    # no player row -> they haven't picked a starter yet
+                    await ctx.send(f"{player_mention} you haven't picked your starter pokemon yet! Run `p!start` to begin.")
+                    return
+
+                remaining_seconds = int(remaining_time.total_seconds())
+                hours, rem = divmod(remaining_seconds, 3600)
+                minutes, seconds = divmod(rem, 60)
+
+                await ctx.send(f"{player_mention} you've already claimed your daily! Come back in **{hours}h and {minutes}m**. ⏳")
         except Exception as e:
             print(f"Failed to update player balance with exception {e}")
 

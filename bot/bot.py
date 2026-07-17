@@ -33,6 +33,7 @@ class PokecordBot(commands.Bot):
         await self.load_extension("cogs.economy")
         await self.load_extension("cogs.pokemon_mgmt")
         await self.load_extension("cogs.util")
+        await self.load_extension("cogs.start")
     
     async def close(self):
         if self.redis:
@@ -47,6 +48,8 @@ bot = PokecordBot()
 @bot.event
 async def on_ready():
     print(f'Successfully logged in as {bot.user} (ID: {bot.user.id})') # type: ignore
+    print(f'Loaded cogs: {", ".join(bot.cogs.keys())}')
+    print(f'Loaded commands: {", ".join(sorted(c.qualified_name for c in bot.commands))}')
     print('------')
 
 @bot.event
