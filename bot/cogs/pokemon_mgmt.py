@@ -186,7 +186,7 @@ class PokemonManager(commands.Cog):
 
     # -------------------------------------------------COMMANDS----------------------------------------------------------- #
     @commands.command(name="catch")
-    async def catch(self, ctx, entered_pokemon: str):
+    async def catch(self, ctx, pokemon: str):
         channel_id = ctx.channel.id
         spawned_pokemon_data = await get_active_spawn(self.bot.redis, channel_id)
 
@@ -243,7 +243,7 @@ class PokemonManager(commands.Cog):
 
         # print(f"entered pokemon: {entered_pokemon}, pokemon name: {pokemon_name}")
 
-        if entered_pokemon.lower() == pokemon_name.lower():
+        if pokemon.lower() == pokemon_name.lower():
             try:
                 async with self.bot.pool.acquire() as conn:
                     await conn.execute(
