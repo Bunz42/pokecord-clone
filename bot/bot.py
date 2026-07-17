@@ -49,6 +49,12 @@ async def on_ready():
     print(f'Successfully logged in as {bot.user} (ID: {bot.user.id})') # type: ignore
     print('------')
 
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        return await ctx.send(f"{ctx.author.mention} that is not a valid command. Run p!help to view a list of all available commands!")
+    raise error
+
 # Run the bot
 if __name__ == '__main__':
     bot.run(token)
