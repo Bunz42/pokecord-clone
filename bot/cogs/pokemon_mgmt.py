@@ -75,8 +75,9 @@ class PokemonManager(commands.Cog):
         return stats
 
     async def _send_pokemon_page(self, ctx, owner_id: int, page: int):
+        count_query = "SELECT COUNT(*) FROM caught_pokemon WHERE owner_id = $1"
         query = '''
-            SELECT *, COUNT(*) OVER() AS total_count
+            SELECT *
             FROM caught_pokemon
             WHERE owner_id = $1
             ORDER BY id
@@ -85,17 +86,21 @@ class PokemonManager(commands.Cog):
 
         try:
             async with self.bot.pool.acquire() as conn:
+                total_count = await conn.fetchval(count_query, owner_id)
+
+                if total_count == 0:
+                    return await ctx.send("You haven't caught any Pokemon yet!")
+
+                total_pages = math.ceil(total_count / 20)
+                if page < 0:
+                    return await ctx.send(f"{ctx.author.mention} There is no previous page!")
+                if page >= total_pages:
+                    return await ctx.send(f"{ctx.author.mention} There is no next page!")
+
                 caught_pokemon = await conn.fetch(query, owner_id, 20, page * 20)
         except Exception as e:
             print(f"Failed to fetch caught pokemon with exception {e}")
             return await ctx.send("Something went wrong fetching your pokemon - Try again.")
-        
-        total_count = caught_pokemon[0]["total_count"] if caught_pokemon else 0
-        total_pages = max(1, math.ceil(total_count / 20))
-        page = max(0, min(page, total_pages - 1)) # clamp first and last page
-
-        if not caught_pokemon:
-            return await ctx.send("You haven't caught any Pokemon yet!")
 
         embed = Embed(
             title=f"{ctx.author.display_name}'s Pokemon", 
