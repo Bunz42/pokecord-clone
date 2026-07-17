@@ -52,7 +52,7 @@ async def on_ready():
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
-        return await ctx.send(f"{ctx.author.mention} that is not a valid command. Run p!help to view a list of all available commands!")
+        return await ctx.send(f"{ctx.author.mention} that is not a valid command. Run `p!help` to view a list of all available commands!")
     raise error
 
 # Run the bot
